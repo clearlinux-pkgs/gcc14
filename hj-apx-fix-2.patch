@@ -1,0 +1,263 @@
+commit 0c0d700cc5069e76675a525307c6be54e865c91a
+Author: H.J. Lu <hjl.tools@intel.com>
+Date:   Sun Feb 4 07:46:35 2024 -0800
+
+    x86-64: Check R_X86_64_CODE_6_GOTTPOFF support
+    
+    If R_X86_64_CODE_6_GOTTPOFF is supported, we can generate
+    
+    add name@gottpoff(%rip), %reg1, %reg2
+    
+    instead of
+    
+    mov name@gottpoff(%rip), %reg2
+    add %reg1, %reg2
+    
+    gcc/
+    
+            * configure.ac (HAVE_AS_R_X86_64_CODE_6_GOTTPOFF): Defined as 1
+            if R_X86_64_CODE_6_GOTTPOFF is supported.
+            * config.in: Regenerated.
+            * configure: Likewise.
+            * config/i386/predicates.md (apx_ndd_add_memory_operand): Allow
+            UNSPEC_GOTNTPOFF if R_X86_64_CODE_6_GOTTPOFF is supported.
+    
+    gcc/testsuite/
+    
+            * gcc.target/i386/apx-ndd-tls-1b.c: New test.
+            * lib/target-supports.exp
+            (check_effective_target_code_6_gottpoff_reloc): New.
+
+diff --git a/gcc/config.in b/gcc/config.in
+index ce1d073833f..f3de4ba6776 100644
+--- a/gcc/config.in
++++ b/gcc/config.in
+@@ -737,6 +737,13 @@
+ #endif
+ 
+ 
++/* Define 0/1 if your assembler and linker support R_X86_64_CODE_6_GOTTPOFF.
++   */
++#ifndef USED_FOR_TARGET
++#undef HAVE_AS_R_X86_64_CODE_6_GOTTPOFF
++#endif
++
++
+ /* Define if your assembler supports relocs needed by -fpic. */
+ #ifndef USED_FOR_TARGET
+ #undef HAVE_AS_SMALL_PIC_RELOCS
+diff --git a/gcc/config/i386/predicates.md b/gcc/config/i386/predicates.md
+index 10b571582f1..99cc2465e72 100644
+--- a/gcc/config/i386/predicates.md
++++ b/gcc/config/i386/predicates.md
+@@ -2299,10 +2299,14 @@
+ 
+ ;; Return true if OP is a memory operand which can be used in APX NDD
+ ;; ADD with register source operand.  UNSPEC_GOTNTPOFF memory operand
+-;; isn't allowed with APX NDD ADD.
++;; is allowed with APX NDD ADD only if R_X86_64_CODE_6_GOTTPOFF works.
+ (define_special_predicate "apx_ndd_add_memory_operand"
+   (match_operand 0 "memory_operand")
+ {
++  /* OK if "add %reg1, name@gottpoff(%rip), %reg2" is supported.  */
++  if (HAVE_AS_R_X86_64_CODE_6_GOTTPOFF)
++    return true;
++
+   op = XEXP (op, 0);
+ 
+   /* Disallow APX NDD ADD with UNSPEC_GOTNTPOFF.  */
+diff --git a/gcc/configure b/gcc/configure
+index c83e09beea9..0603f22262e 100755
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -29834,6 +29834,68 @@ cat >>confdefs.h <<_ACEOF
+ _ACEOF
+ 
+ 
++    if echo "$ld_ver" | grep GNU > /dev/null; then
++      if $gcc_cv_ld -V 2>/dev/null | grep elf_x86_64_sol2 > /dev/null; then
++        ld_ix86_gld_64_opt="-melf_x86_64_sol2"
++      else
++        ld_ix86_gld_64_opt="-melf_x86_64"
++      fi
++    fi
++    conftest_s='
++	.text
++	.globl	_start
++	.type _start, @function
++_start:
++	addq	%r23,foo@GOTTPOFF(%rip), %r15
++	.section .tdata,"awT",@progbits
++	.type foo, @object
++foo:
++	.quad 0'
++    { $as_echo "$as_me:${as_lineno-$LINENO}: checking assembler for R_X86_64_CODE_6_GOTTPOFF reloc" >&5
++$as_echo_n "checking assembler for R_X86_64_CODE_6_GOTTPOFF reloc... " >&6; }
++if ${gcc_cv_as_x86_64_code_6_gottpoff+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  gcc_cv_as_x86_64_code_6_gottpoff=no
++  if test x$gcc_cv_as != x; then
++    $as_echo "$conftest_s" > conftest.s
++    if { ac_try='$gcc_cv_as $gcc_cv_as_flags  -o conftest.o conftest.s >&5'
++  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
++  test $ac_status = 0; }; }
++    then
++	if test x$gcc_cv_ld != x && test x$gcc_cv_objdump != x \
++	    && test x$gcc_cv_readelf != x \
++	    && $gcc_cv_readelf --relocs --wide conftest.o 2>&1 \
++	       | grep R_X86_64_CODE_6_GOTTPOFF > /dev/null 2>&1 \
++	    && $gcc_cv_ld $ld_ix86_gld_64_opt -o conftest conftest.o > /dev/null 2>&1; then
++	   if $gcc_cv_objdump -dw conftest 2>&1 \
++	      | grep "add \+\$0xf\+8,%r23,%r15" > /dev/null 2>&1; then
++	     gcc_cv_as_x86_64_code_6_gottpoff=yes
++	   else
++	     gcc_cv_as_x86_64_code_6_gottpoff=no
++	   fi
++	 fi
++	 rm -f conftest
++    else
++      echo "configure: failed program was" >&5
++      cat conftest.s >&5
++    fi
++    rm -f conftest.o conftest.s
++  fi
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_as_x86_64_code_6_gottpoff" >&5
++$as_echo "$gcc_cv_as_x86_64_code_6_gottpoff" >&6; }
++
++
++
++cat >>confdefs.h <<_ACEOF
++#define HAVE_AS_R_X86_64_CODE_6_GOTTPOFF `if test x"$gcc_cv_as_x86_64_code_6_gottpoff" = xyes; then echo 1; else echo 0; fi`
++_ACEOF
++
++
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking assembler for GOTOFF in data" >&5
+ $as_echo_n "checking assembler for GOTOFF in data... " >&6; }
+ if ${gcc_cv_as_ix86_gotoff_in_data+:} false; then :
+diff --git a/gcc/configure.ac b/gcc/configure.ac
+index 239856a4e20..342c5a8c36a 100644
+--- a/gcc/configure.ac
++++ b/gcc/configure.ac
+@@ -5057,6 +5057,43 @@ _start:
+       [`if test x"$gcc_cv_as_ix86_got32x" = xyes; then echo 1; else echo 0; fi`],
+       [Define 0/1 if your assembler and linker support @GOT.])
+ 
++    if echo "$ld_ver" | grep GNU > /dev/null; then
++      if $gcc_cv_ld -V 2>/dev/null | grep elf_x86_64_sol2 > /dev/null; then
++        ld_ix86_gld_64_opt="-melf_x86_64_sol2"
++      else
++        ld_ix86_gld_64_opt="-melf_x86_64"
++      fi
++    fi
++    conftest_s='
++	.text
++	.globl	_start
++	.type _start, @function
++_start:
++	addq	%r23,foo@GOTTPOFF(%rip), %r15
++	.section .tdata,"awT",@progbits
++	.type foo, @object
++foo:
++	.quad 0'
++    gcc_GAS_CHECK_FEATURE([R_X86_64_CODE_6_GOTTPOFF reloc],
++        gcc_cv_as_x86_64_code_6_gottpoff,,
++	[$conftest_s],
++	[if test x$gcc_cv_ld != x && test x$gcc_cv_objdump != x \
++	    && test x$gcc_cv_readelf != x \
++	    && $gcc_cv_readelf --relocs --wide conftest.o 2>&1 \
++	       | grep R_X86_64_CODE_6_GOTTPOFF > /dev/null 2>&1 \
++	    && $gcc_cv_ld $ld_ix86_gld_64_opt -o conftest conftest.o > /dev/null 2>&1; then
++	   if $gcc_cv_objdump -dw conftest 2>&1 \
++	      | grep "add \+\$0xf\+8,%r23,%r15" > /dev/null 2>&1; then
++	     gcc_cv_as_x86_64_code_6_gottpoff=yes
++	   else
++	     gcc_cv_as_x86_64_code_6_gottpoff=no
++	   fi
++	 fi
++	 rm -f conftest])
++    AC_DEFINE_UNQUOTED(HAVE_AS_R_X86_64_CODE_6_GOTTPOFF,
++      [`if test x"$gcc_cv_as_x86_64_code_6_gottpoff" = xyes; then echo 1; else echo 0; fi`],
++      [Define 0/1 if your assembler and linker support R_X86_64_CODE_6_GOTTPOFF.])
++
+     gcc_GAS_CHECK_FEATURE([GOTOFF in data],
+       gcc_cv_as_ix86_gotoff_in_data,
+       [$as_ix86_gas_32_opt],
+diff --git a/gcc/testsuite/gcc.target/i386/apx-ndd-tls-1b.c b/gcc/testsuite/gcc.target/i386/apx-ndd-tls-1b.c
+new file mode 100644
+index 00000000000..15da4671c5b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/apx-ndd-tls-1b.c
+@@ -0,0 +1,9 @@
++/* PR target/113733 */
++/* { dg-do assemble { target { apxf && { ! ia32 } } } } */
++/* { dg-require-effective-target tls } */
++/* { dg-require-effective-target code_6_gottpoff_reloc } */
++/* { dg-options "-save-temps -mapxf -O3 -w" } */
++
++#include "apx-ndd-tls-1a.c"
++
++/* { dg-final { scan-assembler-times "addq\[ \t]+%r\[a-z0-9\]+, a@gottpoff\\(%rip\\), %r\[a-z0-9\]+" 1 } } */
+diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
+index f66dcaac7b8..6ee388054e0 100644
+--- a/gcc/testsuite/lib/target-supports.exp
++++ b/gcc/testsuite/lib/target-supports.exp
+@@ -12238,6 +12238,54 @@ proc check_effective_target_pie_copyreloc { } {
+     }]
+ }
+ 
++# Return 1 if the x86-64 target supports R_X86_64_CODE_6_GOTTPOFF
++# relocation, 0 otherwise.  Cache the result.
++
++proc check_effective_target_code_6_gottpoff_reloc { } {
++    global tool
++    global GCC_UNDER_TEST
++
++    if { !([istarget i?86-*-*] || [istarget x86_64-*-*]) } {
++	return 0
++    }
++
++    # Need auto-host.h to check linker support.
++    if { ![file exists ../../auto-host.h ] } {
++	return 0
++    }
++
++    return [check_cached_effective_target code_6_gottpoff_reloc {
++	# Include the current process ID in the file names to prevent
++	# conflicts with invocations for multiple testsuites.
++
++	set src code_6_gottpoff[pid].c
++	set obj code_6_gottpoff[pid].o
++
++	set f [open $src "w"]
++	puts $f "#include \"../../auto-host.h\""
++	puts $f "#if HAVE_AS_R_X86_64_CODE_6_GOTTPOFF == 0"
++	puts $f "# error Assembler does not support R_X86_64_CODE_6_GOTTPOFF."
++	puts $f "#endif"
++	close $f
++
++	verbose "check_effective_target_code_6_gottpoff_reloc compiling testfile $src" 2
++	set lines [${tool}_target_compile $src $obj object ""]
++
++	file delete $src
++	file delete $obj
++
++	if [string match "" $lines] then {
++	    verbose "check_effective_target_code_6_gottpoff_reloc testfile compilation passed" 2
++	    return 1
++	} else {
++	    verbose "check_effective_target_code_6_gottpoff_reloc testfile compilation failed" 2
++	    return 0
++	}
++    }]
++
++    return $code_6_gottpoff_reloc_available_saved
++}
++
+ # Return 1 if the x86 target supports R_386_GOT32X relocation, 0
+ # otherwise.  Cache the result.
+ 

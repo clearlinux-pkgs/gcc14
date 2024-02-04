@@ -26,6 +26,7 @@ License  : BSD-3-Clause BSL-1.0 GFDL-1.2 GFDL-1.3 GPL-2.0 GPL-3.0 LGPL-2.1 LGPL-
 
 
 Patch1: hj-apx-fix.patch
+Patch2: hj-apx-fix-2.patch
 
 
 BuildRequires : bison
@@ -79,6 +80,7 @@ GNU cc and gcc C compilers.
 %setup -q -n %{gccpath}
 
 %patch1 -p1
+%patch2 -p1
 
 
 %build
