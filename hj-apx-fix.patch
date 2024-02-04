@@ -1,4 +1,4 @@
-commit 6cf22d7ee944fb31eb371feac132bf9a8683b3cc
+commit fbd1021a1c7a7e7c9abe3ca3ce5f81f7a45cfdbe
 Author: H.J. Lu <hjl.tools@intel.com>
 Date:   Fri Feb 2 12:51:22 2024 -0800
 
@@ -54,7 +54,8 @@ Date:   Fri Feb 2 12:51:22 2024 -0800
     
             PR target/113711
             PR target/113733
-            * gcc.target/i386/apx-ndd-base-index-1.c: New test.
+            * gcc.target/i386/apx-ndd-2.c: New test.
+            * gcc.target/i386/apx-ndd-base-index-1.c: Likewise.
             * gcc.target/i386/apx-ndd-no-seg-global-1.c: Likewise.
             * gcc.target/i386/apx-ndd-seg-1.c: Likewise.
             * gcc.target/i386/apx-ndd-seg-2.c: Likewise.
@@ -171,7 +172,7 @@ index b3e7c74846e..706dfe8f5b2 100644
     of mode MODE at location LOC.  Return true in this case.  */
  bool
 diff --git a/gcc/config/i386/i386.md b/gcc/config/i386/i386.md
-index a82f2e456fe..ea3afc3e1b9 100644
+index a82f2e456fe..4b11a11a204 100644
 --- a/gcc/config/i386/i386.md
 +++ b/gcc/config/i386/i386.md
 @@ -6290,10 +6290,10 @@
@@ -229,7 +230,7 @@ index a82f2e456fe..ea3afc3e1b9 100644
  	(zero_extend:DI
 -	  (plus:SI (match_operand:SI 1 "nonimmediate_operand" "%0,r,r,r,rm")
 -		   (match_operand:SI 2 "x86_64_general_operand" "rBMe,0,le,rBMe,re"))))
-+	  (plus:SI (match_operand:SI 1 "nonimmediate_operand" "%0,r,r,r,rm,jM")
++	  (plus:SI (match_operand:SI 1 "nonimmediate_operand" "%0,r,r,r,rm,rjM")
 +		   (match_operand:SI 2 "x86_64_general_operand" "rBMe,0,le,rBMe,r,e"))))
     (clobber (reg:CC FLAGS_REG))]
    "TARGET_64BIT
@@ -308,7 +309,7 @@ index a82f2e456fe..ea3afc3e1b9 100644
  	(and:DI
 -	 (match_operand:DI 1 "nonimmediate_operand" "%0,r,0,0,rm,r,qm,k")
 -	 (match_operand:DI 2 "x86_64_szext_general_operand" "Z,Z,re,m,re,m,L,k")))
-+	 (match_operand:DI 1 "nonimmediate_operand" "%0,r,0,0,rm,jM,r,qm,k")
++	 (match_operand:DI 1 "nonimmediate_operand" "%0,r,0,0,rm,rjM,r,qm,k")
 +	 (match_operand:DI 2 "x86_64_szext_general_operand" "Z,Z,re,m,r,e,m,L,k")))
     (clobber (reg:CC FLAGS_REG))]
    "TARGET_64BIT
@@ -347,7 +348,7 @@ index a82f2e456fe..ea3afc3e1b9 100644
  	(zero_extend:DI
 -	  (and:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,r")
 -		  (match_operand:SI 2 "x86_64_general_operand" "rBMe,re,BM"))))
-+	  (and:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,jM,r")
++	  (and:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,rjM,r")
 +		  (match_operand:SI 2 "x86_64_general_operand" "rBMe,r,e,BM"))))
     (clobber (reg:CC FLAGS_REG))]
    "TARGET_64BIT
@@ -367,7 +368,7 @@ index a82f2e456fe..ea3afc3e1b9 100644
 -	(and:SWI24 (match_operand:SWI24 1 "nonimmediate_operand" "%0,0,rm,r,qm,k")
 -		   (match_operand:SWI24 2 "<general_operand>" "r<i>,<m>,r<i>,<m>,L,k")))
 +  [(set (match_operand:SWI24 0 "nonimmediate_operand" "=rm,r,r,r,r,Ya,?k")
-+	(and:SWI24 (match_operand:SWI24 1 "nonimmediate_operand" "%0,0,rm,jM,r,qm,k")
++	(and:SWI24 (match_operand:SWI24 1 "nonimmediate_operand" "%0,0,rm,rjM,r,qm,k")
 +		   (match_operand:SWI24 2 "<general_operand>" "r<i>,<m>,r,<i>,<m>,L,k")))
     (clobber (reg:CC FLAGS_REG))]
    "ix86_binary_operator_ok (AND, <MODE>mode, operands, TARGET_APX_NDD)"
@@ -406,16 +407,34 @@ index a82f2e456fe..ea3afc3e1b9 100644
  
  (define_insn "*andqi_1"
    [(set (match_operand:QI 0 "nonimmediate_operand" "=qm,q,r,r,r,?k")
-@@ -12738,7 +12742,7 @@
+@@ -12736,10 +12740,10 @@
+ [(set_attr "isa" "*,*,apx_ndd,apx_ndd")])
+ 
  (define_insn "*<code><mode>_1"
-   [(set (match_operand:SWI248 0 "nonimmediate_operand" "=rm,r,r,r,?k")
+-  [(set (match_operand:SWI248 0 "nonimmediate_operand" "=rm,r,r,r,?k")
++  [(set (match_operand:SWI248 0 "nonimmediate_operand" "=rm,r,r,r,r,?k")
  	(any_or:SWI248
 -	 (match_operand:SWI248 1 "nonimmediate_operand" "%0,0,rm,r,k")
-+	 (match_operand:SWI248 1 "nonimmediate_operand" "%0,0,rjM,r,k")
- 	 (match_operand:SWI248 2 "<general_operand>" "r<i>,<m>,r<i>,<m>,k")))
+-	 (match_operand:SWI248 2 "<general_operand>" "r<i>,<m>,r<i>,<m>,k")))
++	 (match_operand:SWI248 1 "nonimmediate_operand" "%0,0,rm,rjM,r,k")
++	 (match_operand:SWI248 2 "<general_operand>" "r<i>,<m>,r,<i>,<m>,k")))
     (clobber (reg:CC FLAGS_REG))]
    "ix86_binary_operator_ok (<CODE>, <MODE>mode, operands, TARGET_APX_NDD)"
-@@ -12864,19 +12868,20 @@
+   "@
+@@ -12747,9 +12751,10 @@
+    <logic>{<imodesuffix>}\t{%2, %0|%0, %2}
+    <logic>{<imodesuffix>}\t{%2, %1, %0|%0, %1, %2}
+    <logic>{<imodesuffix>}\t{%2, %1, %0|%0, %1, %2}
++   <logic>{<imodesuffix>}\t{%2, %1, %0|%0, %1, %2}
+    #"
+-  [(set_attr "isa" "*,*,apx_ndd,apx_ndd,<kmov_isa>")
+-   (set_attr "type" "alu, alu, alu, alu, msklog")
++  [(set_attr "isa" "*,*,apx_ndd,apx_ndd,apx_ndd,<kmov_isa>")
++   (set_attr "type" "alu, alu, alu, alu, alu, msklog")
+    (set_attr "mode" "<MODE>")])
+ 
+ (define_insn_and_split "*notxor<mode>_1"
+@@ -12864,19 +12869,20 @@
  
  ;; See comment for addsi_1_zext why we do use nonimmediate_operand
  (define_insn "*<code>si_1_zext"
@@ -424,7 +443,7 @@ index a82f2e456fe..ea3afc3e1b9 100644
  	(zero_extend:DI
 -	 (any_or:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,r")
 -		    (match_operand:SI 2 "x86_64_general_operand" "rBMe,re,BM"))))
-+	 (any_or:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,jM,r")
++	 (any_or:SI (match_operand:SI 1 "nonimmediate_operand" "%0,rm,rjM,r")
 +		    (match_operand:SI 2 "x86_64_general_operand" "rBMe,r,e,BM"))))
     (clobber (reg:CC FLAGS_REG))]
    "TARGET_64BIT
@@ -520,6 +539,29 @@ index 06027a84532..a699f4a8e72 100644
 +
 +  return true;
 +})
+diff --git a/gcc/testsuite/gcc.target/i386/apx-ndd-2.c b/gcc/testsuite/gcc.target/i386/apx-ndd-2.c
+new file mode 100644
+index 00000000000..3a5272d065e
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/i386/apx-ndd-2.c
+@@ -0,0 +1,17 @@
++/* { dg-do assemble { target { apxf && { ! ia32 } } } } */
++/* { dg-options "-mapxf -O3 -w" } */
++
++long a;
++int b, d, e;
++void
++g (void)
++{
++  int c;
++  _Bool f;
++  __asm__("" : "=c"(c));
++  switch (d)
++    case 2:
++      e = f = c & 2;
++      if (f)
++	a = b;
++}
 diff --git a/gcc/testsuite/gcc.target/i386/apx-ndd-base-index-1.c b/gcc/testsuite/gcc.target/i386/apx-ndd-base-index-1.c
 new file mode 100644
 index 00000000000..b59bc45370b
