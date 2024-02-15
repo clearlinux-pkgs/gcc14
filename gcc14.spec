@@ -4,7 +4,7 @@
 %define libstdcxx_full 6.0.26
 %define isl_version 0.24
 %define gccver 14
-%define gccpath gcc-14-20240128
+%define gccpath gcc-14-20240211
 # Highest optimisation ABI we target
 %define mtune haswell
 
@@ -16,7 +16,7 @@ Name     : gcc14
 Version  : 14.0.0
 Release  : 1464
 URL      : http://www.gnu.org/software/gcc/
-Source0  : https://gcc.gnu.org/pub/gcc/snapshots/14-20240128/gcc-14-20240128.tar.xz
+Source0  : https://gcc.gnu.org/pub/gcc/snapshots/14-20240211/gcc-14-20240211.tar.xz
 Source1  : https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2
 Source2  : DATESTAMP
 Source3  : REVISION
@@ -24,9 +24,6 @@ Summary  : GNU cc and gcc C compilers
 Group    : Development/Tools
 License  : BSD-3-Clause BSL-1.0 GFDL-1.2 GFDL-1.3 GPL-2.0 GPL-3.0 LGPL-2.1 LGPL-3.0 MIT
 
-
-Patch1: hj-apx-fix.patch
-Patch2: hj-apx-fix-2.patch
 
 
 BuildRequires : bison
@@ -47,7 +44,6 @@ BuildRequires : tcl
 BuildRequires : valgrind-dev
 BuildRequires : libxml2-dev
 BuildRequires : libxslt
-BuildRequires : graphviz
 BuildRequires : gdb-dev
 BuildRequires : procps-ng
 BuildRequires : docbook-xml docbook-utils doxygen
@@ -79,8 +75,6 @@ GNU cc and gcc C compilers.
 %prep
 %setup -q -n %{gccpath}
 
-%patch1 -p1
-%patch2 -p1
 
 
 %build
