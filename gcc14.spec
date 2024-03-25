@@ -14,7 +14,7 @@
 
 Name     : gcc14
 Version  : 14.0.0
-Release  : 1466
+Release  : 1467
 URL      : http://www.gnu.org/software/gcc/
 Source0  : https://gcc.gnu.org/pub/gcc/snapshots/14-20240324/gcc-14-20240324.tar.xz
 Source1  : https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2
